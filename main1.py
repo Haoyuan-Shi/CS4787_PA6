@@ -262,13 +262,13 @@ def sgd_mss_with_momentum_noalloc_float32(Xs, Ys, gamma, W0, alpha, beta, B, num
     V = numpy.zeros(W0.shape, dtype=numpy.float32)
     W = W0
     CTB = numpy.zeros((c,B), dtype=numpy.float32)
-    numpy.ascontiguousarray(CTB)
+    numpy.ascontiguousarray(CTB, dtype=numpy.float32)
     CTD = numpy.zeros((c,d), dtype=numpy.float32)
-    numpy.ascontiguousarray(CTD)
-    BT = numpy.zeros(B)
-    numpy.ascontiguousarray(BT)
+    numpy.ascontiguousarray(CTD, dtype=numpy.float32)
+    BT = numpy.zeros(B, dtype=numpy.float32)
+    numpy.ascontiguousarray(BT, dtype=numpy.float32)
     grad = numpy.zeros((c,d), dtype=numpy.float32)
-    numpy.ascontiguousarray(grad)
+    numpy.ascontiguousarray(grad, dtype=numpy.float32)
     XX = []
     YY = []
     for i in range(int(n/B)):
@@ -318,11 +318,11 @@ def sgd_mss_with_momentum_threaded_float32(Xs, Ys, gamma, W0, alpha, beta, B, nu
     V = numpy.zeros(W0.shape, dtype=numpy.float32)
     W = W0
     grad = numpy.zeros((c,d,num_threads), dtype=numpy.float32)
-    numpy.ascontiguousarray(grad)
+    numpy.ascontiguousarray(grad, dtype=numpy.float32)
     CTD = numpy.zeros((c,d), dtype=numpy.float32)
-    numpy.ascontiguousarray(CTD)
+    numpy.ascontiguousarray(CTD, dtype=numpy.float32)
     grad_sum = numpy.zeros((c,d), dtype=numpy.float32)
-    numpy.ascontiguousarray(grad_sum)
+    numpy.ascontiguousarray(grad_sum, dtype=numpy.float32)
     # construct the barrier object
     iter_barrier = threading.Barrier(num_threads + 1)
     BB = int(B/num_threads)
@@ -330,9 +330,9 @@ def sgd_mss_with_momentum_threaded_float32(Xs, Ys, gamma, W0, alpha, beta, B, nu
     def thread_main(ithread):
         # TODO perform any per-thread allocations
         CTB = numpy.zeros((c,BB), dtype=numpy.float32)
-        numpy.ascontiguousarray(CTB)
+        numpy.ascontiguousarray(CTB, dtype=numpy.float32)
         BT = numpy.zeros(BB, dtype=numpy.float32)
-        numpy.ascontiguousarray(BT)
+        numpy.ascontiguousarray(BT, dtype=numpy.float32)
         XX = []
         YY = []
         for ibatch in range(int(n/B)):
@@ -390,7 +390,8 @@ if __name__ == "__main__":
     B = 16
     gamma = 0.0001
     num_epochs = 20
-    '''
+    BatchSize = numpy.array([8,16,30,60,200,600,3000])
+    
     numpy.random.seed(10)
     W0=numpy.random.rand(c,d)
     W, runningTime = sgd_mss_with_momentum(Xs_tr, Ys_tr, gamma, W0, alpha, beta, B, num_epochs)
@@ -399,9 +400,9 @@ if __name__ == "__main__":
     #print(W_noalloc)
     print(runningTime)
     print(runningTime_noalloc)
-    '''
+    
     #----------------- Part 1.4 --------------------
-    '''
+    
     BatchSize = numpy.array([8,16,30,60,200,600,3000])
     runningTime_function1 = numpy.zeros(len(BatchSize))
     runningTime_function2 = numpy.zeros(len(BatchSize))
@@ -416,9 +417,8 @@ if __name__ == "__main__":
     print(runningTime_function1)
     print(runningTime_function2)
 
-    runningTime_1Thread_with_allocation = [49.3611927, 30.19548202, 22.51507807, 17.74387836, 13.96046305, 11.71879697, 11.37253332]
-    runningTime_1Thread_without_allocation = [28.52443552, 17.12862277, 12.15264082, 8.93213749, 6.49766898, 5.87516403, 5.45233011]
-    
+
+    '''
     pyplot.plot(numpy.log(BatchSize),runningTime_1Thread_with_allocation,label = "1 thread with allocation")
     pyplot.plot(numpy.log(BatchSize),runningTime_1Thread_without_allocation,label = "1 thread without allocation")
     pyplot.plot(numpy.log(BatchSize),runningTime_function1,label = "4 threads with allocation")
@@ -432,13 +432,16 @@ if __name__ == "__main__":
     '''
 
     #----------------- Part 3 --------------------
-
-    '''
-    runningTime_1Thread_with_allocation = [49.3611927, 30.19548202, 22.51507807, 17.74387836, 13.96046305, 11.71879697, 11.37253332]
-    runningTime_1Thread_without_allocation = [28.52443552, 17.12862277, 12.15264082, 8.93213749, 6.49766898, 5.87516403, 5.45233011]
-    runningTime_4Thread_with_allocation = [54.23684359, 31.90959692, 23.14534616, 20.00786281, 12.88839579, 10.09859991, 9.22894502]
-    runningTime_4Thread_without_allocation = [30.94676018, 19.94418836 ,13.47700477,  8.45110869,  4.1854825,   3.2245369,2.65869188]
-
+    
+    
+    runningTime_1Thread_with_allocation = [26.46594834, 17.42944407, 13.2632091,  11.28051305,  9.45631289,  8.15480447,  7.75835109]
+    runningTime_1Thread_without_allocation = [16.09736252,  9.80111098,  7.1132772,   5.41863036,  4.18834376,  3.83750844,3.74079323]
+    runningTime_4Thread_with_allocation = [27.58741975, 17.61528873, 13.39571929, 13.13070273,  9.78340578,  7.93189454,7.10914731]
+    runningTime_4Thread_without_allocation = [16.07953811,  9.8095057,   7.1739738,   5.34029031,  2.80226016,  2.23758483, 1.96508527]
+    runningTime_4Thread_multithreading = [172.21271634,  84.06371689,  50.96550298,  26.82168555,   8.85591698, 4.24953127,   2.21880579]
+    runningTime_1Thread_32float_without_allocation = [27.97581577,17.0100255,13.85664535,9.99562311,7.6155448,6.81991887,6.76068401]    
+    runningTime_4Thread_32float_without_allocation = [17.22347307,  9.90052319,  6.88376498,  5.56926703,  2.84653592,  2.31435084,2.31946588]
+    runningTime_4Thread_32float_multithreading = [160.98149586,81.5410459,44.88501406,23.00822234,8.7163167,4.1080749,2.26823258]
     
     # Part 3
     alpha = 0.1
@@ -459,12 +462,15 @@ if __name__ == "__main__":
 
    
 
-
+    '''
     pyplot.plot(numpy.log(BatchSize),runningTime_1Thread_with_allocation,label = "1 thread with allocation")
     pyplot.plot(numpy.log(BatchSize),runningTime_1Thread_without_allocation,label = "1 thread without allocation")
     pyplot.plot(numpy.log(BatchSize),runningTime_4Thread_with_allocation,label = "4 threads with allocation")
     pyplot.plot(numpy.log(BatchSize),runningTime_4Thread_without_allocation,label = "4 threads without allocation")
-    pyplot.plot(numpy.log(BatchSize),runningTime_function3,label = "4 threads multi-threading")
+    #pyplot.plot(numpy.log(BatchSize),runningTime_4Thread_multithreading,label = "4 threads multi-threading")
+    #pyplot.plot(numpy.log(BatchSize),runningTime_1Thread_32float_without_allocation,label = "1 threads 32 float without allocation")
+    #pyplot.plot(numpy.log(BatchSize),runningTime_4Thread_32float_without_allocation,label = "4 threads 32 float without allocation")
+    #pyplot.plot(numpy.log(BatchSize),runningTime_4Thread_32float_multithreading,label = "4 threads 32 float multi-threading")
 
     pyplot.legend()
     pyplot.xlabel("log(Batch Size)")
@@ -473,12 +479,8 @@ if __name__ == "__main__":
     pyplot.show()
     '''
 
-
+    
     # Part 4
-    alpha = 0.1
-    beta = 0.9
-    gamma = 0.0001
-    num_epochs = 20
     BatchSize = numpy.array([8,16,30,60,200,600,3000])
     runningTime_function4 = numpy.zeros(len(BatchSize))
     for i,B in enumerate(BatchSize):
@@ -489,11 +491,10 @@ if __name__ == "__main__":
         end = time.time()
         runningTime_function4[i] = end-start
     print(runningTime_function4)
+
     '''
-    alpha = 0.1
-    beta = 0.9
-    gamma = 0.0001
-    num_epochs = 20
+
+       
     BatchSize = numpy.array([8,16,30,60,200,600,3000])
     runningTime_function5 = numpy.zeros(len(BatchSize))
     for i,B in enumerate(BatchSize):
@@ -504,11 +505,10 @@ if __name__ == "__main__":
         end = time.time()
         runningTime_function5[i] = end-start
     print(runningTime_function5)
+
+
     '''
-    alpha = 0.1
-    beta = 0.9
-    gamma = 0.0001
-    num_epochs = 20
+
     BatchSize = numpy.array([8,16,30,60,200,600,3000])
     runningTime_function6 = numpy.zeros(len(BatchSize))
     num_threads = 4
@@ -520,3 +520,5 @@ if __name__ == "__main__":
         end = time.time()
         runningTime_function6[i] = end-start
     print(runningTime_function6)
+
+    
