@@ -377,3 +377,50 @@ def sgd_mss_with_momentum_threaded_float32(Xs, Ys, gamma, W0, alpha, beta, B, nu
 if __name__ == "__main__":
     (Xs_tr, Ys_tr, Xs_te, Ys_te) = load_MNIST_dataset()
     # TODO add code to produce figures
+    (d, n) = Xs_tr.shape
+    (c, n) = Ys_tr.shape
+    #----------------- Part 1.3 --------------------
+    alpha = 0.1
+    beta = 0.9
+    B = 16
+    gamma = 0.0001
+    num_epochs = 20
+     
+    numpy.random.seed(10)
+    W0=numpy.random.rand(c,d)
+    W, runningTime = sgd_mss_with_momentum(Xs_tr, Ys_tr, gamma, W0, alpha, beta, B, num_epochs)
+    W_noalloc, runningTime_noalloc = sgd_mss_with_momentum_noalloc(Xs_tr, Ys_tr, gamma, W0, alpha, beta, B, num_epochs)
+    #print(W)
+    #print(W_noalloc)
+    print(runningTime)
+    print(runningTime_noalloc)
+    
+    #----------------- Part 1.4 --------------------
+
+    BatchSize = numpy.array([8,16,30,60,200,600,3000])
+    runningTime_function1 = numpy.zeros(len(BatchSize))
+    runningTime_function2 = numpy.zeros(len(BatchSize))
+
+    for i,B in enumerate(BatchSize):
+        numpy.random.seed(10)
+        W0=numpy.random.rand(c,d)
+        _ , runningTime_function1[i] = sgd_mss_with_momentum(Xs_tr, Ys_tr, gamma, W0, alpha, beta, B, num_epochs)
+        _ , runningTime_function2[i] = sgd_mss_with_momentum_noalloc(Xs_tr, Ys_tr, gamma, W0, alpha, beta, B, num_epochs)
+    
+
+    print(runningTime_function1)
+    print(runningTime_function2)
+
+    runningTime_1Thread_with_allocation = [48.73778772, 30.02505875, 22.22735476, 17.83556247, 14.36813569, 11.78025603, 11.34126973]
+    runningTime_1Thread_without_allocation = [28.44499302, 16.98973155, 12.08607101,  8.8764956,   6.70709801,  5.82716846, 5.54746866]
+
+    pyplot.plot(numpy.log(BatchSize),runningTime_1Thread_with_allocation,label = "1 thread with allocation")
+    pyplot.plot(numpy.log(BatchSize),runningTime_1Thread_without_allocation,label = "1 thread without allocation")
+    pyplot.plot(numpy.log(BatchSize),runningTime_function1,label = "16 threads with allocation")
+    pyplot.plot(numpy.log(BatchSize),runningTime_function2,label = "16 threads without allocation")
+
+    pyplot.legend()
+    pyplot.xlabel("log(Batch Size)")
+    pyplot.ylabel("Wall-clock times (sec)")
+    pyplot.minorticks_on()
+    pyplot.show()
