@@ -414,9 +414,10 @@ if __name__ == "__main__":
 
     print(runningTime_function1)
     print(runningTime_function2)
-
-    runningTime_1Thread_with_allocation = [48.73778772, 30.02505875, 22.22735476, 17.83556247, 14.36813569, 11.78025603, 11.34126973]
-    runningTime_1Thread_without_allocation = [28.44499302, 16.98973155, 12.08607101,  8.8764956,   6.70709801,  5.82716846, 5.54746866]
+    
+    # Results of 1.4
+    runningTime_1Thread_with_allocation = [49.3611927, 30.19548202, 22.51507807, 17.74387836, 13.96046305, 11.71879697, 11.37253332]
+    runningTime_1Thread_without_allocation = [28.52443552, 17.12862277, 12.15264082, 8.93213749, 6.49766898, 5.87516403, 5.45233011]
 
     pyplot.plot(numpy.log(BatchSize),runningTime_1Thread_with_allocation,label = "1 thread with allocation")
     pyplot.plot(numpy.log(BatchSize),runningTime_1Thread_without_allocation,label = "1 thread without allocation")
@@ -428,3 +429,12 @@ if __name__ == "__main__":
     pyplot.ylabel("Wall-clock times (sec)")
     pyplot.minorticks_on()
     pyplot.show()
+    
+    #----------------- Part 3 --------------------
+    
+    # Results of 2.3
+    runningTime_16Threads_with_allocation = [49.27760577, 30.96993208, 23.28618741, 15.96949244, 10.8529613, 8.65477347,8.23400497]         
+    runningTime_16Threads_without_allocation = [29.69645286 , 17.29688811 , 12.87607861 , 6.05368996 , 2.94765091 , 1.96700215, 1.57928967]
+    
+    
+    
