@@ -172,6 +172,8 @@ def sgd_mss_with_momentum_threaded(Xs, Ys, gamma, W0, alpha, beta, B, num_epochs
     W = W0
     grad = numpy.zeros((c,d,num_threads))
     numpy.ascontiguousarray(grad)
+    CTD = numpy.zeros((c,d))
+    numpy.ascontiguousarray(CTD)
     grad_sum = numpy.zeros((c,d))
     numpy.ascontiguousarray(grad_sum)
     # construct the barrier object
@@ -184,12 +186,10 @@ def sgd_mss_with_momentum_threaded(Xs, Ys, gamma, W0, alpha, beta, B, num_epochs
         numpy.ascontiguousarray(CTB)
         BT = numpy.zeros(BB)
         numpy.ascontiguousarray(BT)
-        CTD = numpy.zeros((c,d))
-        numpy.ascontiguousarray(CTD)
         XX = []
         YY = []
-        for i in range(int(n/B)):
-            ii = range(i*B + ithread*BB, i*B + (ithread+1)*BB)
+        for ibatch in range(int(n/B)):
+            ii = range(ibatch*B + ithread*BB, ibatch*B + (ithread+1)*BB)
             XX.append(Xs[:,ii])
             YY.append(Ys[:,ii])
         numpy.ascontiguousarray(XX)
@@ -197,20 +197,13 @@ def sgd_mss_with_momentum_threaded(Xs, Ys, gamma, W0, alpha, beta, B, num_epochs
         for it in range(num_epochs):
             for ibatch in range(int(n/B)):
                 # TODO work done by thread in each iteration; this section of code should primarily use numpy operations with the "out=" argument specified (students should implement this)
-                # ii = range(ibatch*B + ithread*Bt, ibatch*B + (ithread+1)*Bt)
+                # ii = range(ibatch*B + ithread*Bt, ibatch*B + (ithread+1)*Bt)               
                 numpy.dot(W, XX[ibatch],out=CTB)
                 numpy.exp(numpy.subtract(CTB, numpy.amax(CTB, axis=0,out=BT),out=CTB),out=CTB)
                 numpy.divide(CTB, numpy.sum(CTB, axis = 0,out = BT),out=CTB)
-                numpy.dot(numpy.subtract(CTB, YY[ibatch],out=CTB), XX[ibatch].transpose(),out=grad_sum) 
-                numpy.add(grad_sum,numpy.multiply(gamma,W,out=CTD),out=grad_sum)
-                grad[:,:,ithread] = grad_sum
+                numpy.dot(numpy.subtract(CTB, YY[ibatch],out=CTB), XX[ibatch].transpose(),out=CTD) 
+                grad[:,:,ithread] = CTD
                 iter_barrier.wait()
-                if ithread == 0:
-                    numpy.divide(numpy.sum(grad, axis=2, out=grad_sum),B,out = grad_sum) 
-                    numpy.multiply(beta,V,out = CTD)
-                    numpy.multiply(alpha,grad_sum,out=grad_sum)
-                    numpy.subtract(CTD,grad_sum,out=V)
-                    numpy.add(W,V,out=W)
                 iter_barrier.wait()
 
     worker_threads = [threading.Thread(target=thread_main, args=(it,)) for it in range(num_threads)]
@@ -224,6 +217,12 @@ def sgd_mss_with_momentum_threaded(Xs, Ys, gamma, W0, alpha, beta, B, num_epochs
         for ibatch in range(int(n/B)):
             iter_barrier.wait()
             # TODO work done on a single thread at each iteration; this section of code should primarily use numpy operations with the "out=" argument specified (students should implement this)
+            numpy.divide(numpy.sum(grad, axis=2, out=grad_sum),B,out = grad_sum)
+            numpy.add(grad_sum,numpy.multiply(gamma,W,out=CTD),out=grad_sum)
+            numpy.multiply(beta,V,out = CTD)
+            numpy.multiply(alpha,grad_sum,out=grad_sum)
+            numpy.subtract(CTD,grad_sum,out=V)
+            numpy.add(W,V,out=W)
             iter_barrier.wait()
 
     for t in worker_threads:
