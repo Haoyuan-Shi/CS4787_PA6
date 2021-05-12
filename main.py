@@ -231,7 +231,6 @@ def sgd_mss_with_momentum_threaded(Xs, Ys, gamma, W0, alpha, beta, B, num_epochs
     # return the learned model
     return W
 
-
 # SGD + Momentum (No Allocation) in 32-bits => all operations in the inner loop should be a
 #   call to a numpy.____ function with the "out=" argument explicitly specified
 #   so that no extra allocations occur
@@ -248,9 +247,45 @@ def sgd_mss_with_momentum_threaded(Xs, Ys, gamma, W0, alpha, beta, B, num_epochs
 #
 # returns         the final model arrived at at the end of training
 def sgd_mss_with_momentum_noalloc_float32(Xs, Ys, gamma, W0, alpha, beta, B, num_epochs):
+    Xs = Xs.astype(numpy.float32)
+    Ys = Ys.astype(numpy.float32)
+    W0 = W0.astype(numpy.float32)
     (d, n) = Xs.shape
     (c, d) = W0.shape
     # TODO students should implement this by copying and adapting their 64-bit code
+    V = numpy.zeros(W0.shape, dtype=numpy.float32)
+    W = W0
+    CTB = numpy.zeros((c,B), dtype=numpy.float32)
+    numpy.ascontiguousarray(CTB)
+    CTD = numpy.zeros((c,d), dtype=numpy.float32)
+    numpy.ascontiguousarray(CTD)
+    BT = numpy.zeros(B)
+    numpy.ascontiguousarray(BT)
+    grad = numpy.zeros((c,d), dtype=numpy.float32)
+    numpy.ascontiguousarray(grad)
+    XX = []
+    YY = []
+    for i in range(int(n/B)):
+        ii = range(i*B, (i+1)*B)
+        XX.append(Xs[:,ii])
+        YY.append(Ys[:,ii])
+    numpy.ascontiguousarray(XX, dtype=numpy.float32)
+    numpy.ascontiguousarray(YY, dtype=numpy.float32)
+    print("Running minibatch sequential-scan SGD with momentum (no allocation)")
+    for it in tqdm(range(num_epochs)):
+        for ibatch in range(int(n/B)):
+            # ii = range(ibatch*B, (ibatch+1)*B)
+            # TODO this section of code should only use numpy operations with the "out=" argument specified (students should implement this)
+            numpy.dot(W, XX[ibatch],out=CTB)
+            numpy.exp(numpy.subtract(CTB, numpy.amax(CTB, axis=0,out=BT),out=CTB),out=CTB)
+            numpy.divide(CTB, numpy.sum(CTB, axis = 0,out = BT),out=CTB)
+            numpy.divide(numpy.dot(numpy.subtract(CTB, YY[ibatch],out=CTB), XX[ibatch].transpose(),out=grad),B,out=grad) 
+            numpy.add(grad,numpy.multiply(gamma,W,out=CTD),out=grad)
+            numpy.multiply(beta,V,out = CTD)
+            numpy.multiply(alpha,grad,out=grad)
+            numpy.subtract(CTD,grad,out=V)
+            numpy.add(W,V,out=W)
+    return W
 
 
 # SGD + Momentum (threaded, float32)
@@ -268,9 +303,74 @@ def sgd_mss_with_momentum_noalloc_float32(Xs, Ys, gamma, W0, alpha, beta, B, num
 #
 # returns         the final model arrived at at the end of training
 def sgd_mss_with_momentum_threaded_float32(Xs, Ys, gamma, W0, alpha, beta, B, num_epochs, num_threads):
+    Xs = Xs.astype(numpy.float32)
+    Ys = Ys.astype(numpy.float32)
+    W0 = W0.astype(numpy.float32)
     (d, n) = Xs.shape
     (c, d) = W0.shape
     # TODO students should implement this by copying and adapting their 64-bit code
+    V = numpy.zeros(W0.shape, dtype=numpy.float32)
+    W = W0
+    grad = numpy.zeros((c,d,num_threads), dtype=numpy.float32)
+    numpy.ascontiguousarray(grad)
+    CTD = numpy.zeros((c,d), dtype=numpy.float32)
+    numpy.ascontiguousarray(CTD)
+    grad_sum = numpy.zeros((c,d), dtype=numpy.float32)
+    numpy.ascontiguousarray(grad_sum)
+    # construct the barrier object
+    iter_barrier = threading.Barrier(num_threads + 1)
+    BB = int(B/num_threads)
+    # a function for each thread to run
+    def thread_main(ithread):
+        # TODO perform any per-thread allocations
+        CTB = numpy.zeros((c,BB), dtype=numpy.float32)
+        numpy.ascontiguousarray(CTB)
+        BT = numpy.zeros(BB, dtype=numpy.float32)
+        numpy.ascontiguousarray(BT)
+        XX = []
+        YY = []
+        for ibatch in range(int(n/B)):
+            ii = range(ibatch*B + ithread*BB, ibatch*B + (ithread+1)*BB)
+            XX.append(Xs[:,ii])
+            YY.append(Ys[:,ii])
+        numpy.ascontiguousarray(XX, dtype=numpy.float32)
+        numpy.ascontiguousarray(YY, dtype=numpy.float32)
+        for it in range(num_epochs):
+            for ibatch in range(int(n/B)):
+                # TODO work done by thread in each iteration; this section of code should primarily use numpy operations with the "out=" argument specified (students should implement this)
+                # ii = range(ibatch*B + ithread*Bt, ibatch*B + (ithread+1)*Bt)               
+                numpy.dot(W, XX[ibatch],out=CTB)
+                numpy.exp(numpy.subtract(CTB, numpy.amax(CTB, axis=0,out=BT),out=CTB),out=CTB)
+                numpy.divide(CTB, numpy.sum(CTB, axis = 0,out = BT),out=CTB)
+                numpy.dot(numpy.subtract(CTB, YY[ibatch],out=CTB), XX[ibatch].transpose(),out=CTD) 
+                grad[:,:,ithread] = CTD
+                iter_barrier.wait()
+                iter_barrier.wait()
+
+    worker_threads = [threading.Thread(target=thread_main, args=(it,)) for it in range(num_threads)]
+
+    for t in worker_threads:
+        print("running thread ", t)
+        t.start()
+
+    print("Running minibatch sequential-scan SGD with momentum (%d threads)" % num_threads)
+    for it in tqdm(range(num_epochs)):
+        for ibatch in range(int(n/B)):
+            iter_barrier.wait()
+            # TODO work done on a single thread at each iteration; this section of code should primarily use numpy operations with the "out=" argument specified (students should implement this)
+            numpy.divide(numpy.sum(grad, axis=2, out=grad_sum),B,out = grad_sum)
+            numpy.add(grad_sum,numpy.multiply(gamma,W,out=CTD),out=grad_sum)
+            numpy.multiply(beta,V,out = CTD)
+            numpy.multiply(alpha,grad_sum,out=grad_sum)
+            numpy.subtract(CTD,grad_sum,out=V)
+            numpy.add(W,V,out=W)
+            iter_barrier.wait()
+
+    for t in worker_threads:
+        t.join()
+
+    # return the learned model
+    return W
 
 
 
