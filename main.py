@@ -233,7 +233,7 @@ def sgd_mss_with_momentum_threaded(Xs, Ys, gamma, W0, alpha, beta, B, num_epochs
         
     end = time.time()
     # return the learned model
-    return W,(end-time)
+    return W,(end-start)
 
 # SGD + Momentum (No Allocation) in 32-bits => all operations in the inner loop should be a
 #   call to a numpy.____ function with the "out=" argument explicitly specified
