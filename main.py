@@ -70,7 +70,6 @@ def load_MNIST_dataset():
     return dataset
 
 
-
 # SGD + Momentum (adapt from Programming Assignment 3)
 #
 # Xs              training examples (d * n)
@@ -86,7 +85,6 @@ def load_MNIST_dataset():
 def sgd_mss_with_momentum(Xs, Ys, gamma, W0, alpha, beta, B, num_epochs):
     # TODO students should use their implementation from programming assignment 3
     # or adapt this version, which is from my own solution to programming assignment 3
-    models = []
     (d, n) = Xs.shape
     V = numpy.zeros(W0.shape)
     W = W0
@@ -96,9 +94,7 @@ def sgd_mss_with_momentum(Xs, Ys, gamma, W0, alpha, beta, B, num_epochs):
             ii = range(ibatch*B, (ibatch+1)*B)
             V = beta * V - alpha * multinomial_logreg_grad_i(Xs, Ys, ii, gamma, W)
             W = W + V
-            if ((ibatch+1) % monitor_period == 0):
-                models.append(W)
-    return models
+    return W
 
 
 # SGD + Momentum (No Allocation) => all operations in the inner loop should be a
@@ -120,13 +116,39 @@ def sgd_mss_with_momentum_noalloc(Xs, Ys, gamma, W0, alpha, beta, B, num_epochs)
     (d, n) = Xs.shape
     (c, d) = W0.shape
     # TODO students should initialize the parameter vector W and pre-allocate any needed arrays here
+    V = numpy.zeros(W0.shape)
+    W = W0
+    CTB = numpy.zeros((c,B))
+    numpy.ascontiguousarray(CTB)
+    CTD = numpy.zeros((c,d))
+    numpy.ascontiguousarray(CTD)
+    BT = numpy.zeros(B)
+    numpy.ascontiguousarray(BT)
+    grad = numpy.zeros((c,d))
+    numpy.ascontiguousarray(grad)
+    XX = []
+    YY = []
+    for i in range(int(n/B)):
+        ii = range(i*B, (i+1)*B)
+        XX.append(Xs[:,ii])
+        YY.append(Ys[:,ii])
+    numpy.ascontiguousarray(XX)
+    numpy.ascontiguousarray(YY)
     print("Running minibatch sequential-scan SGD with momentum (no allocation)")
     for it in tqdm(range(num_epochs)):
         for ibatch in range(int(n/B)):
             # ii = range(ibatch*B, (ibatch+1)*B)
             # TODO this section of code should only use numpy operations with the "out=" argument specified (students should implement this)
+            numpy.dot(W, XX[ibatch],out=CTB)
+            numpy.exp(numpy.subtract(CTB, numpy.amax(CTB, axis=0,out=BT),out=CTB),out=CTB)
+            numpy.divide(CTB, numpy.sum(CTB, axis = 0,out = BT),out=CTB)
+            numpy.divide(numpy.dot(numpy.subtract(CTB, YY[ibatch],out=CTB), XX[ibatch].transpose(),out=grad),B,out=grad) 
+            numpy.add(grad,numpy.multiply(gamma,W,out=CTD),out=grad)
+            numpy.multiply(beta,V,out = CTD)
+            numpy.multiply(alpha,grad,out=grad)
+            numpy.subtract(CTD,grad,out=V)
+            numpy.add(W,V,out=W)
     return W
-
 
 # SGD + Momentum (threaded)
 #
@@ -146,18 +168,49 @@ def sgd_mss_with_momentum_threaded(Xs, Ys, gamma, W0, alpha, beta, B, num_epochs
     (d, n) = Xs.shape
     (c, d) = W0.shape
     # TODO perform any global setup/initialization/allocation (students should implement this)
-
+    V = numpy.zeros(W0.shape)
+    W = W0
+    grad = numpy.zeros((c,d,num_threads))
+    numpy.ascontiguousarray(grad)
+    grad_sum = numpy.zeros((c,d))
+    numpy.ascontiguousarray(grad_sum)
     # construct the barrier object
     iter_barrier = threading.Barrier(num_threads + 1)
-
+    BB = int(B/num_threads)
     # a function for each thread to run
     def thread_main(ithread):
         # TODO perform any per-thread allocations
+        CTB = numpy.zeros((c,BB))
+        numpy.ascontiguousarray(CTB)
+        BT = numpy.zeros(BB)
+        numpy.ascontiguousarray(BT)
+        CTD = numpy.zeros((c,d))
+        numpy.ascontiguousarray(CTD)
+        XX = []
+        YY = []
+        for i in range(int(n/B)):
+            ii = range(i*B + ithread*BB, i*B + (ithread+1)*BB)
+            XX.append(Xs[:,ii])
+            YY.append(Ys[:,ii])
+        numpy.ascontiguousarray(XX)
+        numpy.ascontiguousarray(YY)
         for it in range(num_epochs):
             for ibatch in range(int(n/B)):
                 # TODO work done by thread in each iteration; this section of code should primarily use numpy operations with the "out=" argument specified (students should implement this)
                 # ii = range(ibatch*B + ithread*Bt, ibatch*B + (ithread+1)*Bt)
+                numpy.dot(W, XX[ibatch],out=CTB)
+                numpy.exp(numpy.subtract(CTB, numpy.amax(CTB, axis=0,out=BT),out=CTB),out=CTB)
+                numpy.divide(CTB, numpy.sum(CTB, axis = 0,out = BT),out=CTB)
+                numpy.dot(numpy.subtract(CTB, YY[ibatch],out=CTB), XX[ibatch].transpose(),out=grad_sum) 
+                numpy.add(grad_sum,numpy.multiply(gamma,W,out=CTD),out=grad_sum)
+                grad[:,:,ithread] = grad_sum
                 iter_barrier.wait()
+                if ithread == 0:
+                    numpy.divide(numpy.sum(grad, axis=2, out=grad_sum),B,out = grad_sum) 
+                    numpy.multiply(beta,V,out = CTD)
+                    numpy.multiply(alpha,grad_sum,out=grad_sum)
+                    numpy.subtract(CTD,grad_sum,out=V)
+                    numpy.add(W,V,out=W)
                 iter_barrier.wait()
 
     worker_threads = [threading.Thread(target=thread_main, args=(it,)) for it in range(num_threads)]
