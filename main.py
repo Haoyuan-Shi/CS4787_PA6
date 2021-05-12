@@ -85,6 +85,7 @@ def load_MNIST_dataset():
 def sgd_mss_with_momentum(Xs, Ys, gamma, W0, alpha, beta, B, num_epochs):
     # TODO students should use their implementation from programming assignment 3
     # or adapt this version, which is from my own solution to programming assignment 3
+    start = time.time()
     (d, n) = Xs.shape
     V = numpy.zeros(W0.shape)
     W = W0
@@ -94,7 +95,8 @@ def sgd_mss_with_momentum(Xs, Ys, gamma, W0, alpha, beta, B, num_epochs):
             ii = range(ibatch*B, (ibatch+1)*B)
             V = beta * V - alpha * multinomial_logreg_grad_i(Xs, Ys, ii, gamma, W)
             W = W + V
-    return W
+    end = time.time()
+    return W,(end-start)
 
 
 # SGD + Momentum (No Allocation) => all operations in the inner loop should be a
@@ -113,9 +115,9 @@ def sgd_mss_with_momentum(Xs, Ys, gamma, W0, alpha, beta, B, num_epochs):
 #
 # returns         the final model arrived at at the end of training
 def sgd_mss_with_momentum_noalloc(Xs, Ys, gamma, W0, alpha, beta, B, num_epochs):
+    start = time.time()
     (d, n) = Xs.shape
     (c, d) = W0.shape
-    # TODO students should initialize the parameter vector W and pre-allocate any needed arrays here
     V = numpy.zeros(W0.shape)
     W = W0
     CTB = numpy.zeros((c,B))
@@ -148,7 +150,8 @@ def sgd_mss_with_momentum_noalloc(Xs, Ys, gamma, W0, alpha, beta, B, num_epochs)
             numpy.multiply(alpha,grad,out=grad)
             numpy.subtract(CTD,grad,out=V)
             numpy.add(W,V,out=W)
-    return W
+    end = time.time()
+    return W,(end-start)
 
 # SGD + Momentum (threaded)
 #
@@ -165,9 +168,9 @@ def sgd_mss_with_momentum_noalloc(Xs, Ys, gamma, W0, alpha, beta, B, num_epochs)
 #
 # returns         the final model arrived at at the end of training
 def sgd_mss_with_momentum_threaded(Xs, Ys, gamma, W0, alpha, beta, B, num_epochs, num_threads):
+    start = time.time()
     (d, n) = Xs.shape
     (c, d) = W0.shape
-    # TODO perform any global setup/initialization/allocation (students should implement this)
     V = numpy.zeros(W0.shape)
     W = W0
     grad = numpy.zeros((c,d,num_threads))
@@ -227,9 +230,10 @@ def sgd_mss_with_momentum_threaded(Xs, Ys, gamma, W0, alpha, beta, B, num_epochs
 
     for t in worker_threads:
         t.join()
-
+        
+    end = time.time()
     # return the learned model
-    return W
+    return W,(end-time)
 
 # SGD + Momentum (No Allocation) in 32-bits => all operations in the inner loop should be a
 #   call to a numpy.____ function with the "out=" argument explicitly specified
