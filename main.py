@@ -453,3 +453,50 @@ if __name__ == "__main__":
         end = time.time()
         runningTime_function3[i] = end-start
     print(runningTime_function3)
+
+    # Part 4
+    alpha = 0.1
+    beta = 0.9
+    gamma = 0.0001
+    num_epochs = 20
+    BatchSize = numpy.array([8,16,30,60,200,600,3000])
+    runningTime_function4 = numpy.zeros(len(BatchSize))
+    for i,B in enumerate(BatchSize):
+        numpy.random.seed(10)
+        W0=numpy.random.rand(c,d)
+        start = time.time()
+        sgd_mss_with_momentum_noalloc_float32(Xs_tr, Ys_tr, gamma, W0, alpha, beta, B, num_epochs)
+        end = time.time()
+        runningTime_function4[i] = end-start
+    print(runningTime_function4)
+    
+    alpha = 0.1
+    beta = 0.9
+    gamma = 0.0001
+    num_epochs = 20
+    BatchSize = numpy.array([8,16,30,60,200,600,3000])
+    runningTime_function5 = numpy.zeros(len(BatchSize))
+    for i,B in enumerate(BatchSize):
+        numpy.random.seed(10)
+        W0=numpy.random.rand(c,d)
+        start = time.time()
+        sgd_mss_with_momentum_noalloc_float32(Xs_tr, Ys_tr, gamma, W0, alpha, beta, B, num_epochs)
+        end = time.time()
+        runningTime_function5[i] = end-start
+    print(runningTime_function5)
+    
+    alpha = 0.1
+    beta = 0.9
+    gamma = 0.0001
+    num_epochs = 20
+    BatchSize = numpy.array([8,16,30,60,200,600,3000])
+    runningTime_function6 = numpy.zeros(len(BatchSize))
+    num_threads = 4
+    for i,B in enumerate(BatchSize):
+        numpy.random.seed(10)
+        W0=numpy.random.rand(c,d)
+        start = time.time()
+        sgd_mss_with_momentum_threaded_float32(Xs_tr, Ys_tr, gamma, W0, alpha, beta, B, num_epochs,num_threads)
+        end = time.time()
+        runningTime_function6[i] = end-start
+    print(runningTime_function6)
